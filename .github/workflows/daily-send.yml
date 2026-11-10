@@ -5,6 +5,9 @@ on:
     # Executa a cada hora em UTC. O código decide se está dentro da janela
     # local configurada (sendTime + maxDelayMinutes). O GitHub pode atrasar.
     - cron: '0 * * * *'
+    # Uma vez por semana (segunda, 09:17 em Brasília) renova o prazo de
+    # inatividade do GitHub, que desativa agendamentos após 60 dias sem commits.
+    - cron: '17 12 * * 1'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -35,6 +38,7 @@ concurrency:
 jobs:
   enviar:
     name: Executar envio
+    if: github.event.schedule != '17 12 * * 1'
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -84,3 +88,18 @@ jobs:
         if: always()
         continue-on-error: true
         run: node src/session-cleanup.js
+
+  manter-ativo:
+    name: Manter agendamento ativo
+    if: github.event.schedule == '17 12 * * 1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Renovar prazo de inatividade
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X PUT "repos/${{ github.repository }}/actions/workflows/daily-send.yml/enable"
+          echo "Agendamento renovado."
