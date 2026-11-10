@@ -97,6 +97,12 @@ export class PrivateRepoStore {
       throw new AppError('GITHUB_API', `Falha ao ler arquivo privado: ${safeMessage}`);
     }
     const data = await this._readBody(response);
+    if (data && data.encoding === 'none' && data.type === 'file') {
+      // Arquivos acima de 1 MB vêm sem conteúdo; é preciso pedir o formato bruto.
+      const raw = await this._request(path, { method: 'GET', headers: { Accept: 'application/vnd.github.raw' } });
+      if (!raw.ok) throw new AppError('GITHUB_API', `Falha ao ler arquivo privado grande: HTTP ${raw.status}`);
+      return { content: Buffer.from(await raw.arrayBuffer()), sha: data.sha, path };
+    }
     if (!data || data.encoding !== 'base64' || typeof data.content !== 'string') {
       throw new AppError('GITHUB_RESPOSTA', 'Resposta inesperada do GitHub ao ler arquivo privado.');
     }
