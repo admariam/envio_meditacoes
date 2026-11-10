@@ -1,0 +1,36 @@
+# Dependências
+node_modules/
+
+# Sessão Baileys e credenciais — NUNCA versionar
+.baileys-auth*
+auth_info*/
+session*.json
+session*.b64
+session*.enc
+session*.enc.b64
+*.tar
+*.tar.gz
+*.tgz
+
+# Configuração, programação e estado privados
+.env
+.env.*
+!.env.example
+config.private.json
+schedule.private.json
+state.private.json
+links-meditacoes*.txt
+programacao*.txt
+private/
+data/
+
+# Build e artefatos
+_site/
+dist/
+coverage/
+*.log
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini

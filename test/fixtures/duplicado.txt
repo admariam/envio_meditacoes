@@ -1,0 +1,2 @@
+2026-12-01  https://exemplo.com/primeiro.html  (Terça · 01/12 · Primeiro)
+2026-12-01  https://exemplo.com/segundo.html  (Terça · 01/12 · Segundo)

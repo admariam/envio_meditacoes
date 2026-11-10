@@ -1,0 +1,5 @@
+2026-11-30  https://exemplo.com/meditacao-01.html  (Segunda · 30/11 · Título da meditação 1)
+2026-12-01  https://exemplo.com/meditacao-02.html  (Terça · 01/12 · Título da meditação 2)
+2026-12-02  https://exemplo.com/meditacao-03.html  (Quarta · 02/12 · Título da meditação 3)
+2026-12-03  https://exemplo.com/meditacao-04.html  (Quinta · 03/12 · Título da meditação 4)
+2026-12-04  https://exemplo.com/meditacao-05.html  (Sexta · 04/12 · Título da meditação 5)

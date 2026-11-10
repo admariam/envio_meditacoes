@@ -1,0 +1,5 @@
+2026-02-30  https://exemplo.com/invalida.html  (Segunda · 30/02 · Data impossível)
+2026-12-01  ftp://exemplo.com/arquivo  (Terça · 01/12 · URL com protocolo inválido)
+2026-12-02  https://exemplo.com/sem-titulo.html  (Quarta · 02/12 · )
+linha completamente inválida
+2026-12-03  https://exemplo.com/data-divergente.html  (Quinta · 04/12 · Data divergente)

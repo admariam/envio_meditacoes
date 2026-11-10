@@ -1,0 +1,26 @@
+{
+  "name": "meditacoes-whatsapp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Agendador diário de meditações para grupos do WhatsApp via Baileys",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "node --test",
+    "import": "node src/import-schedule.js",
+    "validate": "node src/validate.js",
+    "dry-run": "node src/run-daily.js --dry-run",
+    "send": "node src/run-daily.js --live",
+    "login": "node src/session-login.js",
+    "session:pack": "node src/session-tool.js pack",
+    "session:seal": "node src/session-tool.js seal",
+    "pages:build": "node scripts/build-pages.mjs"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pino": "^9.5.0",
+    "qrcode-terminal": "0.12.0"
+  }
+}

@@ -1,0 +1,86 @@
+name: Envio diário de meditações
+
+on:
+  schedule:
+    # Executa a cada hora em UTC. O código decide se está dentro da janela
+    # local configurada (sendTime + maxDelayMinutes). O GitHub pode atrasar.
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Simular sem conectar ao WhatsApp (padrão recomendado)'
+        type: boolean
+        default: true
+      target_date:
+        description: 'Data alvo YYYY-MM-DD (vazio = hoje no fuso configurado)'
+        type: string
+        required: false
+        default: ''
+      retry_failed:
+        description: 'Permitir nova tentativa somente para grupos com falha/incerteza'
+        type: boolean
+        default: false
+      confirm_live:
+        description: 'Confirmação explícita para envio real (obrigatória se dry_run=false)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: meditacoes-envio-diario
+  cancel-in-progress: false
+
+jobs:
+  enviar:
+    name: Executar envio
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Baixar código público
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Executar testes
+        run: npm test
+
+      - name: Validar build público
+        run: npm run pages:build
+
+      - name: Enviar ou simular
+        env:
+          # Repositório privado e credenciais. Nenhum valor é impresso.
+          PRIVATE_CONFIG_REPO: ${{ vars.PRIVATE_CONFIG_REPO }}
+          PRIVATE_CONFIG_BRANCH: ${{ vars.PRIVATE_CONFIG_BRANCH || 'main' }}
+          PRIVATE_CONFIG_TOKEN: ${{ secrets.PRIVATE_CONFIG_TOKEN }}
+          SESSION_ENCRYPTION_KEY: ${{ secrets.SESSION_ENCRYPTION_KEY }}
+          BAILEYS_SESSION_B64: ${{ secrets.BAILEYS_SESSION_B64 }}
+
+          # Envio real só é liberado no agendamento ou com confirmação manual.
+          ALLOW_LIVE_SEND: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && format('{0}', inputs.confirm_live) == 'true')) && 'confirm-send' || '' }}
+
+          # Inputs manuais convertidos para true/false. Vazio no agendamento.
+          INPUT_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.dry_run) || '' }}
+          INPUT_CONFIRM_LIVE: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.confirm_live) || '' }}
+          INPUT_RETRY_FAILED: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.retry_failed) || '' }}
+          INPUT_TARGET_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.target_date || '' }}
+
+          TZ: UTC
+        run: node src/run-daily.js
+
+      - name: Remover sessão temporária
+        if: always()
+        continue-on-error: true
+        run: node src/session-cleanup.js

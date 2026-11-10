@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Meditações diárias no WhatsApp</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="wrap">
+        <p class="eyebrow">Ferramenta privada</p>
+        <h1>Meditações diárias no WhatsApp</h1>
+        <p class="lead">
+          Preparação, validação e exportação da configuração usada pelo envio diário via Baileys.
+        </p>
+      </div>
+    </header>
+
+    <main class="wrap" id="main">
+      <div class="callout warning" role="note">
+        <strong>Integração não oficial.</strong> Este projeto usa <code>@whiskeysockets/baileys</code>, não a API
+        oficial do WhatsApp. Mudanças no WhatsApp podem interromper o funcionamento, e o uso de automação pode
+        restringir a conta. Não há garantia de disponibilidade contínua.
+      </div>
+
+      <div class="callout info" role="note">
+        <strong>Esta página é pública e estática.</strong> Ela não acessa o repositório privado, não envia mensagens,
+        não usa <code>localStorage</code> e não salva nada no navegador. A configuração privada deve ser mantida em um
+        repositório GitHub privado e atualizada manualmente com os arquivos exportados aqui. Sem um backend autenticado,
+        o Pages não consegue ler nem alterar esses dados com segurança.
+      </div>
+
+      <nav class="toc" aria-label="Seções">
+        <a href="#configuracao">Configuração</a>
+        <a href="#programacao">Programação</a>
+        <a href="#historico">Histórico</a>
+        <a href="#dry-run">Dry-run</a>
+      </nav>
+
+      <section class="card" id="configuracao" aria-labelledby="config-title">
+        <div class="section-heading">
+          <div>
+            <p class="step">1</p>
+            <h2 id="config-title">Grupos, horário e fuso</h2>
+          </div>
+          <span class="privacy-tag">Dados privados: não persistem nesta página</span>
+        </div>
+
+        <fieldset class="group-fieldset">
+          <legend>Grupos de destino</legend>
+          <p class="muted">
+            Use o JID completo do grupo, terminado em <code>@g.us</code>. Convites, contatos e grupos não listados
+            serão recusados pelo workflow. Configure pelo menos dois grupos.
+          </p>
+          <div id="groups-list" class="stack"></div>
+          <div class="actions">
+            <button type="button" class="button secondary" id="add-group">Adicionar grupo</button>
+          </div>
+        </fieldset>
+
+        <div class="grid two">
+          <label class="field">
+            <span>Horário diário de envio</span>
+            <input type="time" id="send-time" value="06:00" required />
+            <small>Padrão: 06:00. O fuso abaixo é aplicado pelo workflow.</small>
+          </label>
+          <label class="field">
+            <span>Fuso horário (IANA)</span>
+            <input list="timezone-list" id="timezone" value="America/Sao_Paulo" required />
+            <datalist id="timezone-list">
+              <option value="America/Sao_Paulo"></option>
+              <option value="America/Manaus"></option>
+              <option value="America/Rio_Branco"></option>
+              <option value="America/Belem"></option>
+              <option value="America/Fortaleza"></option>
+              <option value="America/Recife"></option>
+              <option value="America/Cuiaba"></option>
+              <option value="America/Porto_Velho"></option>
+              <option value="UTC"></option>
+            </datalist>
+            <small>O GitHub Actions agenda em UTC; o workflow confere a hora local a cada execução.</small>
+          </label>
+        </div>
+
+        <label class="field narrow">
+          <span>Janela máxima de atraso (minutos)</span>
+          <input type="number" id="max-delay" min="0" max="720" step="1" value="180" />
+          <small>Se o runner atrasar além desse limite, nada é enviado e o motivo é registrado.</small>
+        </label>
+
+        <fieldset class="group-fieldset">
+          <legend>Intervalo esperado da programação</legend>
+          <p class="muted">
+            Use para conferir datas faltantes. O intervalo não libera envio: cada data ainda precisa ter seu próprio
+            registro.
+          </p>
+          <div class="grid two">
+            <label class="field">
+              <span>Data inicial</span>
+              <input type="date" id="range-start" />
+            </label>
+            <label class="field">
+              <span>Data final</span>
+              <input type="date" id="range-end" />
+            </label>
+          </div>
+          <div class="actions">
+            <button type="button" class="button secondary" id="check-missing">Verificar datas faltantes</button>
+          </div>
+          <div id="missing-status" class="status" aria-live="polite"></div>
+          <ul id="missing-list" class="date-list" hidden></ul>
+        </fieldset>
+
+        <div class="actions">
+          <button type="button" class="button" id="validate-config">Validar configuração</button>
+          <button type="button" class="button secondary" id="export-config">Exportar configuração privada</button>
+        </div>
+        <div id="config-status" class="status" aria-live="polite"></div>
+        <p class="muted small">
+          O arquivo exportado contém IDs privados dos grupos. Guarde-o apenas no repositório privado de configuração.
+        </p>
+      </section>
+
+      <section class="card" id="programacao" aria-labelledby="schedule-title">
+        <div class="section-heading">
+          <div>
+            <p class="step">2</p>
+            <h2 id="schedule-title">Programação de datas, títulos e links</h2>
+          </div>
+          <span class="privacy-tag">Importação local, sem upload</span>
+        </div>
+
+        <div class="grid two">
+          <label class="field">
+            <span>Importar arquivo TXT</span>
+            <input type="file" id="schedule-file" accept=".txt,text/plain" />
+            <small>Formato: <code>YYYY-MM-DD  URL  (Dia · DD/MM · Título)</code>. UTF-8 ou Windows-1252.</small>
+          </label>
+          <div class="field">
+            <span>Ou colar o conteúdo</span>
+            <textarea id="schedule-text" rows="5" placeholder="2026-11-30  https://exemplo.com/meditacao.html  (Segunda · 30/11 · Título)"></textarea>
+            <button type="button" class="button secondary" id="import-text">Importar texto colado</button>
+          </div>
+        </div>
+
+        <div id="import-status" class="status" aria-live="polite"></div>
+        <div id="import-errors" class="issues" aria-live="polite"></div>
+        <div id="import-warnings" class="issues" aria-live="polite"></div>
+        <div id="import-duplicates" class="issues" aria-live="polite"></div>
+        <div class="actions">
+          <button type="button" class="button secondary" id="clear-import-errors">Limpar avisos/erros de importação</button>
+        </div>
+
+        <div class="section-subheading">
+          <h3>Registros</h3>
+          <span id="records-count" class="pill">0 registros</span>
+        </div>
+
+        <form id="record-form" class="record-form" novalidate>
+          <label class="field">
+            <span>Data (ISO)</span>
+            <input type="date" id="record-date" required />
+          </label>
+          <label class="field">
+            <span>Título</span>
+            <input type="text" id="record-title" maxlength="300" required />
+          </label>
+          <label class="field grow">
+            <span>URL</span>
+            <input type="url" id="record-url" maxlength="2048" placeholder="https://exemplo.com/meditacao.html" required />
+          </label>
+          <button type="submit" class="button">Adicionar registro</button>
+        </form>
+        <div id="record-form-status" class="status" aria-live="polite"></div>
+
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Registros da programação</caption>
+            <thead>
+              <tr>
+                <th scope="col">Data</th>
+                <th scope="col">Dia calculado</th>
+                <th scope="col">Título</th>
+                <th scope="col">URL</th>
+                <th scope="col">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="records-body"></tbody>
+          </table>
+        </div>
+        <p id="records-empty" class="muted">Nenhum registro importado. Importe o TXT ou adicione manualmente.</p>
+
+        <div class="actions">
+          <button type="button" class="button" id="export-txt">Exportar TXT legível</button>
+          <button type="button" class="button secondary" id="export-schedule">Exportar programação privada (JSON)</button>
+          <button type="button" class="button danger" id="clear-schedule">Limpar programação</button>
+        </div>
+        <div id="export-status" class="status" aria-live="polite"></div>
+        <p class="muted small">
+          Os arquivos exportados contêm dados privados. Não os envie ao GitHub Pages, a repositórios públicos ou a
+          artefatos públicos.
+        </p>
+      </section>
+
+      <section class="card" id="historico" aria-labelledby="history-title">
+        <div class="section-heading">
+          <div>
+            <p class="step">3</p>
+            <h2 id="history-title">Histórico e status dos envios</h2>
+          </div>
+          <span class="privacy-tag">Somente leitura local</span>
+        </div>
+        <p class="muted">
+          O Pages não consegue ler o estado privado. Para consultar, baixe <code>data/state.json</code> do repositório
+          privado e carregue-o aqui. O arquivo fica apenas na memória desta aba e não é enviado a nenhum servidor.
+        </p>
+        <label class="field">
+          <span>Carregar state.json (opcional)</span>
+          <input type="file" id="state-file" accept=".json,application/json" />
+        </label>
+        <div id="state-status" class="status" aria-live="polite"></div>
+        <div id="state-summary" class="summary-grid"></div>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Últimas execuções</caption>
+            <thead>
+              <tr>
+                <th scope="col">Data</th>
+                <th scope="col">Modo</th>
+                <th scope="col">Resultado</th>
+                <th scope="col">Grupos</th>
+                <th scope="col">Início</th>
+              </tr>
+            </thead>
+            <tbody id="state-runs-body"></tbody>
+          </table>
+        </div>
+        <p id="state-empty" class="muted">Nenhum histórico carregado.</p>
+
+        <div class="section-subheading">
+          <h3>Entregas por data e grupo</h3>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">Entregas registradas</caption>
+            <thead>
+              <tr>
+                <th scope="col">Data</th>
+                <th scope="col">Grupo</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Tentativas</th>
+                <th scope="col">Confirmado em</th>
+                <th scope="col">Erro</th>
+              </tr>
+            </thead>
+            <tbody id="state-deliveries-body"></tbody>
+          </table>
+        </div>
+        <div class="actions">
+          <button type="button" class="button secondary" id="clear-state">Limpar histórico carregado</button>
+        </div>
+      </section>
+
+      <section class="card" id="dry-run" aria-labelledby="dry-title">
+        <div class="section-heading">
+          <div>
+            <p class="step">4</p>
+            <h2 id="dry-title">Teste em modo dry-run</h2>
+          </div>
+          <span class="privacy-tag">Nenhuma conexão com o WhatsApp</span>
+        </div>
+        <p class="muted">
+          A simulação abaixo é local. O dry-run real do workflow roda no GitHub Actions e também não envia mensagens;
+          no disparo manual, ele é o padrão. Para envio real são exigidas duas confirmações explícitas.
+        </p>
+        <div class="grid two">
+          <label class="field">
+            <span>Data a simular</span>
+            <input type="date" id="dry-date" />
+          </label>
+          <div class="field">
+            <span>Fuso usado</span>
+            <output id="dry-timezone" class="output">America/Sao_Paulo</output>
+            <small>A data é interpretada no fuso configurado acima.</small>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="button" class="button" id="simulate">Simular envio</button>
+          <button type="button" class="button secondary" id="today-button">Usar hoje no fuso</button>
+        </div>
+        <div id="dry-status" class="status" aria-live="polite"></div>
+        <pre id="dry-preview" class="preview" hidden></pre>
+        <p class="muted small">
+          <a id="actions-link" href="#" target="_blank" rel="noopener noreferrer" hidden>
+            Abrir o workflow no GitHub Actions
+          </a>
+        </p>
+      </section>
+
+      <section class="card limitations" aria-labelledby="limits-title">
+        <h2 id="limits-title">Limitações importantes</h2>
+        <ul>
+          <li>O GitHub Actions não garante início no minuto exato; filas e manutenção podem atrasar a execução.</li>
+          <li>Em repositórios públicos, workflows agendados podem ser desativados após 60 dias sem atividade no repositório.</li>
+          <li>A interface não edita o repositório privado. A atualização é manual, por exportação e envio dos arquivos.</li>
+          <li>Baileys é não oficial: o WhatsApp pode alterar o protocolo, limitar ou restringir a conta.</li>
+          <li>O envio é tentado uma vez por grupo/dia; falhas exigem nova tentativa manual controlada.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="footer wrap">
+      <p>
+        Sessão, grupos, programação e histórico nunca devem ir para este site público. Consulte o README do projeto
+        para configurar o repositório privado e os GitHub Secrets.
+      </p>
+    </footer>
+
+    <noscript>
+      <div class="wrap callout warning">Esta interface precisa de JavaScript habilitado para validar e exportar os arquivos localmente.</div>
+    </noscript>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
