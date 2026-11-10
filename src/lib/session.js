@@ -6,7 +6,9 @@ import { AppError, SessionMissingError, StateError } from './errors.js';
 
 const BUNDLE_VERSION = 1;
 const MAX_BUNDLE_BYTES = 10 * 1024 * 1024;
-const MAX_FILES = 300;
+// O Baileys grava um arquivo por pre-key, sessão Signal, sender-key etc.
+// Uma sessão recém-criada já passa de 800 arquivos e cresce com o uso.
+const MAX_FILES = 20000;
 const MAGIC = Buffer.from('MDS1');
 
 function keyBuffer(keyB64) {
