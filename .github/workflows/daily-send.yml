@@ -2,9 +2,13 @@ name: Envio diário de meditações
 
 on:
   schedule:
-    # Executa a cada hora em UTC. O código decide se está dentro da janela
-    # local configurada (sendTime + maxDelayMinutes). O GitHub pode atrasar.
-    - cron: '0 * * * *'
+    # Vários disparos entre 09:00 e 11:59 UTC (06:00–08:59 em Brasília), em
+    # minutos quebrados. O GitHub descarta muitos agendamentos no minuto 0 de
+    # cada hora, que é o horário mais congestionado; com vários disparos na
+    # janela, basta um deles rodar. O código decide se está dentro da janela
+    # (sendTime + maxDelayMinutes) e não envia duas vezes no mesmo dia.
+    # Se mudar sendTime na configuração privada, ajuste estas horas (em UTC).
+    - cron: '7,19,31,43,54 9-11 * * *'
     # Uma vez por semana (segunda, 09:17 em Brasília) renova o prazo de
     # inatividade do GitHub, que desativa agendamentos após 60 dias sem commits.
     - cron: '17 12 * * 1'
