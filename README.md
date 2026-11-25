@@ -426,14 +426,18 @@ O dry-run local sem `--state-file` usa estado em memória e não grava nada. Com
 
 ### Agendamento
 
-O workflow `daily-send.yml` roda a cada hora em UTC:
+O workflow `daily-send.yml` roda várias vezes entre 09:00 e 11:59 UTC
+(06:00–08:59 em Brasília), em minutos quebrados:
 
 ```yaml
 schedule:
-  - cron: '0 * * * *'
+  - cron: '7,19,31,43,54 9-11 * * *'
 ```
 
-Ele não envia a cada hora. Em cada execução, `run-daily.js`:
+O GitHub trata o agendamento como "melhor esforço" e descarta muitos disparos,
+sobretudo no minuto 0 de cada hora. Por isso há vários disparos dentro da
+janela: basta que um deles rode. Os demais encontram o envio já feito e
+terminam sem fazer nada. Em cada execução, `run-daily.js`:
 
 1. calcula a data e a hora no fuso configurado;
 2. se estiver antes de `sendTime`, retorna `before_window` sem gravar estado;
@@ -443,8 +447,9 @@ Ele não envia a cada hora. Em cada execução, `run-daily.js`:
    envia;
 5. se já houve tentativa real naquela data, retorna `already_attempted`.
 
-A data usada é sempre a data local no fuso configurado. O cron não precisa ser
-alterado quando o horário local mudar; a checagem é feita em tempo de execução.
+A data usada é sempre a data local no fuso configurado. Se `sendTime` ou
+`maxDelayMinutes` mudarem na configuração privada, ajuste as horas do cron
+(em UTC) para que os disparos caiam dentro da nova janela.
 
 ### Disparo manual
 
