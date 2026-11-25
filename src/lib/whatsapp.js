@@ -17,6 +17,7 @@ import {
   SessionRequiresQrError,
   sanitizeText
 } from './errors.js';
+import { buildLinkPreview, PREVIEW_LABELS } from './link-preview.js';
 
 const silentLogger = pino({ level: 'silent' });
 
@@ -87,6 +88,7 @@ export async function createWhatsAppGateway({
       browser: Browsers.ubuntu('Chrome'),
       markOnline: false,
       syncFullHistory: false,
+      // A prévia do link é montada em link-preview.js e passada pronta.
       generateHighQualityLinkPreview: false,
       connectTimeoutMs,
       defaultQueryTimeoutMs: 60000,
@@ -226,13 +228,26 @@ export async function createWhatsAppGateway({
     });
   }
 
+  // A mesma mensagem vai para todos os grupos: a prévia é montada uma vez só.
+  const previewCache = new Map();
+  async function previewFor(text) {
+    if (!previewCache.has(text)) {
+      const preview = await buildLinkPreview(text, { uploadImage: sock?.waUploadToServer });
+      console.log(`Prévia do link: ${PREVIEW_LABELS[preview.kind]}`);
+      previewCache.set(text, preview);
+    }
+    return previewCache.get(text);
+  }
+
   async function sendToGroup(groupId, text) {
     const jid = String(groupId ?? '').trim();
     await connect();
     await assertGroup(jid);
+    const { linkPreview } = await previewFor(text);
     let result;
     try {
-      result = await sock.sendMessage(jid, { text });
+      // linkPreview: null impede o Baileys de tentar montar a prévia de novo.
+      result = await sock.sendMessage(jid, { text, linkPreview: linkPreview ?? null });
     } catch (error) {
       throw new SendError(
         'SEND_FAILED',
