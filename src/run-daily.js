@@ -10,6 +10,7 @@ import { PrivateRepoStore } from './lib/private-repo.js';
 import { FileStateStore, GitHubStateStore, MemoryStateStore } from './lib/state-store.js';
 import { loadSessionInto, removeAuthDir, saveSessionFrom } from './lib/session.js';
 import { runDaily } from './lib/run.js';
+import { buildLinkPreview, PREVIEW_LABELS } from './lib/link-preview.js';
 
 function parseBool(value, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -301,6 +302,11 @@ async function main() {
       showMessage: values['show-message'] || Boolean(values.json)
     });
     printSanitizedReport(report, { json: Boolean(values.json) });
+    if (dryRun && report.messagePreview && !values.json) {
+      // Confere se a página do link rende miniatura, sem conectar ao WhatsApp.
+      const { kind } = await buildLinkPreview(report.messagePreview);
+      console.log(`Prévia do link (simulação, imagem pequena): ${PREVIEW_LABELS[kind]}`);
+    }
     await appendSummary(report);
     exitCode = report.exitCode;
   } finally {

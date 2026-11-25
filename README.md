@@ -473,6 +473,19 @@ Regras:
 - `retry_failed` nunca reenvia grupos já `sent`; ele só destrava `failed`,
   `unknown` ou `sending`.
 
+### Prévia do link (miniatura)
+
+A mensagem sai com a prévia do link montada pelo próprio programa
+(`src/lib/link-preview.js`, com o pacote `link-preview-js`): título, descrição
+e imagem vêm das metatags `og:title`, `og:description` e `og:image` da página.
+Primeiro tenta a imagem grande (upload ao WhatsApp); se falhar, usa a miniatura
+pequena; se a página não responder, a mensagem vai só com o texto, sem travar
+o envio. O log mostra `Prévia do link: ...` com o resultado.
+
+No dry-run aparece `Prévia do link (simulação, imagem pequena): ...`, que
+confere se a página do dia tem título e imagem sem conectar ao WhatsApp. Se
+aparecer "sem imagem", falta `<meta property="og:image" ...>` na página.
+
 ### Por que não há retry automático?
 
 Um envio pode ter sido aceito pelo WhatsApp mesmo quando a resposta se perde. Se o
